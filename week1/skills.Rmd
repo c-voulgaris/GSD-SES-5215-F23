@@ -1,6 +1,6 @@
 ---
 title: "Skills: Describing data relationships"
-subtitle: "Week 3"
+subtitle: "Week 1"
 output: 
   rmdformats::readthedown:
     toc_depth: 3
