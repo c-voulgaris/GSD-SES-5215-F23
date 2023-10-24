@@ -1,0 +1,565 @@
+---
+title: "Skills: Describing data relationships"
+subtitle: "Week 3"
+output: 
+  rmdformats::readthedown:
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::knit_engines$set(python = reticulate::eng_python) 
+```
+
+This page illustrates some skills that will be useful to you
+as you learn to describe variables in a dataset and the 
+relationships among them.
+
+# Generating simulated data
+
+In practice, generating simulated (i.e. fake) data is generally
+not going to yield useful insights about the real world, but
+it can be a good way to confirm that your methods doing what you
+think they're doing.
+
+## Uniformly-distributed continuous variables
+
+A uniformly-distributed variable is one where all values 
+(within a range) are equally likely.
+
+### R
+
+In R, you can generate a uniform random variable using the
+`runif()` function. It takes three arguments:
+
+* `n`: The number of values to generate
+* `min`: The lower end of the range of possible values
+* `max`: The upper end of the range of possible values
+
+Here is how you would generate 1000 numbers that are uniformly
+distributed between 13 and 87.
+
+```{r}
+my_uniform <- runif(n = 5000, 
+                    min = 13, 
+                    max = 87)
+```
+
+The default values for `min` and `max` are zero and one, so if 
+you want random values between zero and one, you can leave those
+arguments out.
+
+```{r}
+my_zero_to_one <- runif(n = 5000)
+```
+
+### Excel
+
+The equivalent function in Excel is `RANDBETWEEN()`. It takes
+two arguments arguments:
+
+* `bottom`: The lower end of the range of possible values
+* `top`: The upper end of the range of possible values
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+library(here)
+
+here("week1",
+     "gifs",
+     "excel-uniform.gif") |>
+  knitr::include_graphics()
+```
+
+A related function that will generate a random number from a 
+uniform distribution between zero and one is `RAND()`
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-uniform-0-1.gif") |>
+  knitr::include_graphics()
+```
+
+## Normally-distributed continuous variable
+
+Many real-world quantities are normally distributed within
+a population. In a normal distribution, values close to the
+average values are the most likely, and values futher from
+the average (whether lower or higher) are less likely.
+
+A normal distribution can be described in terms
+of its mean and standard deviation.
+
+### R
+
+In R, you can use the `rnorm()` function to generate a set of
+random numbers that are normally distributed. The function
+takes three arguments:
+
+* `n`: The number of values you want to generate.
+* `mean`: The average value of the distribution you want to draw from.
+* `sd`: The standard deviation of the distribution you want to draw from.
+
+Here is how you would generate a set of 100 random numbers from
+a normal distribution with a mean of 150 and a standard deviation 
+of 30.
+
+```{r}
+my_normal <- rnorm(n = 5000,
+                mean = 150,
+                sd = 30)
+```
+
+### Excel
+
+In Excel, the function `NORM.INV` will return a value that
+a random variable from normal distribution with a specified 
+mean and standard deviation has a specified probability of 
+being less than. If the specified probability is a random
+number between zero and one, this will be equivalent to the
+`rnorm()` function in R.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-normal.gif") |>
+  knitr::include_graphics()
+```
+
+## Dependent categorical variable
+
+You can assign values to a categorical variable based on the
+values of a continuous variable. If you want values with specified
+probabilities of being in each of multiple categories, you can
+use a uniformly-distributed categorical variable as a starting 
+point. 
+
+For example, if you want 30 percent of your observations
+to be in category A, 50 percent of your observations to be in
+category B, and the remaining 20 percent to be in category C, 
+You could generate a random uniform variable and assign category
+A to values less than 0.3, category B to the remaining values that
+are less than 0.8, and category C to everything else.
+
+### R
+
+The `case_when()` function offers an easy way to do that
+in R. It will work best if you organize your variables into 
+a tibble first.
+
+```{r, message=FALSE}
+library(tidyverse)
+
+my_data <- tibble(uniform = my_uniform,
+                  zero_to_one = my_zero_to_one,
+                  normal = my_normal) |>
+  mutate(categories = case_when(zero_to_one < 0.3 ~ "A",
+                                zero_to_one < 0.8 ~ "B",
+                                TRUE ~ "C"))
+
+```
+
+Here are the first few rows of the resulting tibble:
+
+```{r}
+library(knitr)
+
+my_data |>
+  head() |>
+  kable()
+```
+
+I can also create a separate column with a 1 (true) or 0 (false)
+value for each of those three categories.
+
+```{r}
+my_data <- my_data |>
+  mutate(A = ifelse(categories == "A", 1, 0),
+         B = ifelse(categories == "B", 1, 0),
+         C = ifelse(categories == "C", 1, 0))
+
+my_data |>
+  head() |>
+  kable()
+```
+
+
+### Excel
+
+In Excel, you can do something similar with nested
+`IF` functions. An `IF` function in Excel takes three
+functions:
+
+* A logical statement that is either true or false
+* The value to return if the statement is true
+* The value to return if the statement is false
+
+If the final argument (the value to return if the statement
+is false) is another `IF` statement, then you are nesting
+one `IF` statement inside another.
+
+Remember to always lock your cell references before pasting 
+a formula down a column (this is an error in the example below).
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-cats.gif") |>
+  knitr::include_graphics()
+```
+
+And you can also use if statements to create a separate column
+with a 1/0 (true/false) value for each category.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-cats-2.gif") |>
+  knitr::include_graphics()
+```
+
+## Dependent continuous variable
+
+When you generate multiple random variables, they will
+be independent from one another. You can also generate
+a variable that depends on the value of other variables.
+
+In the examples below, I'll create a new variable that has
+a linear relationship with the normally-distributed variable
+and the categorical variable I just created. For observations
+in category A, the value of the new variable will be 
+ninety percent of the value of the independent normal variable
+I previously generated. Observations in category B will be
+five points higher than if they were in category A, and 
+observations in category C will be 10 points lower than if they
+were in category A.
+
+### R
+
+Here is how I would calculate that new value in R.
+
+```{r}
+my_data <- my_data |>
+  mutate(outcome = 0.9*normal + 5*B - 10*C)
+
+my_data |>
+  head() |>
+  kable()
+```
+
+### Excel
+
+And here is how I would do it in Excel.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-outcome.gif") |>
+  knitr::include_graphics()
+```
+
+# Visualizing data
+
+Some common graphics to visualize data include histograms,
+scatter plots, tree maps, and violin plots.
+
+## Histogram
+
+A histogram is a useful way to visualize the distubution of
+a continuous variable.
+
+### R
+
+In R (ggplot2), `geom_hist` will generate a histogram.
+
+Here, I'll check to see whether the random normal variable
+I generated really does approximate a normal distribution.
+
+```{r}
+ggplot(my_data) +
+  geom_histogram(aes(x = normal),
+                 bins = 40) +
+  theme_linedraw()
+```
+
+
+### Excel
+
+You can create a histogram in Excel using the data analysis 
+tool pack. By default, it will put gaps between the bars. It is 
+more common to show histograms without these gaps, so you can 
+remove them.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-hist.gif") |>
+  knitr::include_graphics()
+```
+
+## Scatter plot (continuous-continuous)
+
+A scatter plot is commonly used to show the relationship between
+two continuous variables. 
+
+### R
+
+You can use `geom_point` to generate a scatter plot in R.
+
+```{r}
+ggplot(my_data) +
+  geom_point(aes(x = normal,
+                 y = outcome)) +
+  theme_linedraw()
+```
+
+### Excel
+
+You can create a scatter plot in Excel using the "Insert Chart"
+button.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-scatter.gif") |>
+  knitr::include_graphics()
+```
+
+Looking through the examples so far, how does the scatter plot
+I just created in Excel look different from the one I created in
+R? Why the difference?^[The answer is that both the normally-distributed variable and the categorical variable were 
+calculated from the same uniformly-distributed variable, so they
+are not independent from one another. This is an error (assuming
+these are meant to represent independent variables).]
+
+## Scatter plot (continuous-categorical)
+
+You can also use a scatter plot to show the relationship
+between a continuous variable and a categorical variable.
+
+### R
+
+In R, you can use set a categorical variable for either
+the x axis or the y axis, and set the parameter `position = "jitter"`
+to add random variation within the category positions.
+
+```{r}
+ggplot(my_data) +
+  geom_point(aes(x = categories,
+                 y = outcome),
+             position = "jitter") +
+  theme_linedraw()
+```
+
+### Excel
+
+You can acheive the same effect by adding that random variation manually in
+Excel. You would create a variable to represent the positions of points
+along the x-axis.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-cat-pos.gif") |>
+  knitr::include_graphics()
+```
+
+Then you can create a scatter plot as usual.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-cat-plot.gif") |>
+  knitr::include_graphics()
+```
+
+# Descriptive statistics
+
+You may want to describe your data with descriptive statistics.
+
+## Mean
+
+The *mean* is the average value of a variable. It is a measure of 
+central tendency that is sensitive to outliers.
+
+### R
+
+The function in R that will calculate a mean is called `mean()`.
+
+```{r}
+mean(my_data$outcome)
+```
+
+You can do some fancy data reshaping to get the means of multiple
+variables in a neat little table.
+
+```{r}
+data_summary <- my_data |>
+  pivot_longer(cols = c("normal", "outcome"),
+               names_to = "Variable",
+               values_to = "value") |>
+  group_by(Variable) |>
+  summarize(Average = mean(value))
+
+kable(data_summary, format.args = list(digits = 4))
+```
+
+### Excel
+
+In Excel, the function is `AVERAGE()`.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-mean.gif") |>
+  knitr::include_graphics()
+```
+
+## Standard deviation
+
+The standard deviation is a measure of how spread out the
+data are. It is sensitive to outliers.
+
+### R 
+
+In R, the function `sd()` will calculate a standard deviation.
+
+```{r}
+sd(my_data$normal)
+```
+Again, you can get this into a neat little table with some
+data carpentry magic.
+
+```{r}
+data_summary <- my_data |>
+  pivot_longer(cols = c("normal", "outcome"),
+               names_to = "Variable",
+               values_to = "value") |>
+  group_by(Variable) |>
+  summarize(Average = mean(value),
+            `Standard deviation` = sd(value))
+
+kable(data_summary, format.args = list(digits = 4))
+```
+
+### Excel
+
+In Excel, the function to calculate a standard deviation is `STDEV.P()`.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-stdev.gif") |>
+  knitr::include_graphics()
+```
+
+## Median and other percentiles
+
+Percentiles are the values that a specified percentage of observations
+of a variable are lower than. The 50th percentile is also called the 
+median: It's the value that half of all observations are less than.
+
+The median is measure of central tendency that is not sensitive to 
+outliers.
+
+The range between lower and upper percentiles can be a useful measure
+of central tendency. For example, the interquartile range (IQR) is the range
+between the 25th and 75th percentile. Half of all values fall within
+this range.
+
+### R
+
+In R, you can calculate a percentile with the function `quantile()`
+
+```{r}
+median = quantile(my_data$normal, 
+                  probs = 0.5)
+
+median
+```
+
+```{r}
+pctile_75 = quantile(my_data$normal, probs = 0.75)
+
+pctile_25 = quantile(my_data$normal, probs = 0.25)
+
+IQR = pctile_75 - pctile_25
+
+as.numeric(IQR)
+```
+
+And again you can put those in a neat little table.
+
+```{r}
+data_summary <- my_data |>
+  pivot_longer(cols = c("normal", "outcome"),
+               names_to = "Variable",
+               values_to = "value") |>
+  group_by(Variable) |>
+  summarize(Average = mean(value),
+            `Standard deviation` = sd(value),
+            Median = quantile(value, probs = 0.5),
+            IQR = quantile(value, probs = 0.75) - quantile(value, probs = 0.25))
+
+kable(data_summary, format.args = list(digits = 4))
+```
+
+### Excel
+
+In Excel, the function to calculate percentiles is 
+`PERCENTILE.EXC()`.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-pctile.gif") |>
+  knitr::include_graphics()
+```
+
+## Proportions
+
+If you've set up a column for each category, where a value of 1 means
+the observation is in that category and a value of zero means it is not,
+the average of one of those columns is the proportion of observations
+within that category. 
+
+Use the method for calculating an average in either R or Excel.
+
+# Regression
+
+We calculated the outcome variable as a function of the normally-disributed
+variable and the category:
+
+$$
+outcome = (0.9)normal + (5)B - (10)C 
+$$
+
+If we didn't know what equation was used to generate the outcome
+variable, we could reverse-engineer it using regression.
+
+## R
+
+In R, we can estimate a linear regression model using the function 
+`lm()`.
+
+```{r}
+model = lm(outcome ~ normal + B + C, data = my_data)
+
+summary(model)
+```
+
+## Excel
+
+In Excel, we can estimate a regression model using the 
+regression tool in the data analysis tool pack.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week1",
+     "gifs",
+     "excel-regression.gif") |>
+  knitr::include_graphics()
+```
+
+Notice that the regression output are static values rather than 
+formulas. The values will not update when the data used to generate 
+them updates.
