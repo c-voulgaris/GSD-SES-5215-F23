@@ -25,7 +25,7 @@ think they're doing.
 ## Uniformly-distributed continuous variables
 
 A uniformly-distributed variable is one where all values 
-(within a range) are equally likely.
+within a range are equally likely.
 
 ### R
 
