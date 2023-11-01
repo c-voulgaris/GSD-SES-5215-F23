@@ -1,0 +1,144 @@
+---
+title: "Preterm Demonstration"
+author: "Carole Voulgaris"
+date: "2023-08-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This demonstation uses a sample dataset you can download from GitHub.
+
+```{r download data, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+data <- read_csv(
+  "https://raw.githubusercontent.com/c-voulgaris/GSD-SES-5215-F23/main/preterm/messy_data.csv")
+```
+
+This dataset includes the median age and median income for each zip code in the United
+States for each year between 2011 and 2021.
+
+# Viewing data
+
+The `head()` function will print out the first few rows of 
+a dataset. The `kable()` function will format it nicely (when
+you knit it), and the `kable_styling()` function with the `"striped"`
+argument shades every other row.
+
+```{r}
+library(knitr)
+library(kableExtra)
+
+head(data) |>
+  kable() |>
+  kable_styling("striped")
+```
+
+# Data cleaning
+
+Your data should be *tidy* in each of these ways:
+
+* Each observation has its own row.
+* Each variable has its own column.
+* Each value has its own cell.
+
+Additionally, you want to make sure that the data type is consistent with 
+the analysis you want to do.
+
+## Column names to variables
+
+In our dataset, the year of an observation should be one of the
+variables, but it's set up as a column name. We want to reshape 
+the data so that there a column for a variable that indicates the 
+year.
+
+```{r}
+data_long <- data |>
+  pivot_longer(cols = -ZIP,
+               names_to = "year")
+```
+
+
+## Splitting data across columns
+
+Now you have one column that includes two pieces
+of information: median age and mediant income. We want to 
+split these into separate columns.
+
+```{r}
+data_age_inc <- data_long |>
+  mutate(age = str_sub(value, 6, 10),
+         income = str_sub(value, 21))
+```
+
+## Checking a variable type
+
+You can check the type of a variable using the function `class()`
+
+```{r}
+class(data$ZIP)
+```
+
+## Changing a variable type
+
+```{r}
+data_age_inc <- data_age_inc |>
+  mutate(age = as.numeric(age),
+         income = as.numeric(income),
+         ZIP = as.character(ZIP))
+
+```
+
+## Filtering data
+
+```{r}
+data_age_inc <- data_age_inc |>
+  filter(age > 0 & income > 0)
+
+```
+
+# Data vis
+
+You can also embed plots, for example:
+
+```{r}
+ggplot(data_age_inc) +
+  geom_point(aes(x = age, y = income)) 
+
+ggsave("scatter.pdf", height = 4, width = 6, units = "in")
+```
+
+
+```{r}
+ggplot(data) +
+  geom_point(aes(x = age, y = income),
+             alpha = 0.1,
+             size = 0.1,
+             color = "orange") +
+  scale_x_continuous(name = "ZIP code median age",
+                     breaks = seq(10, 100, by=10)) +
+  scale_y_continuous(name = "Zip code median income",
+                     breaks = breaks <- seq(0, 250000, by = 50000),
+                     labels = paste0("$", 
+                                     formatC(breaks, 
+                                               big.mark = ",", 
+                                               format = "d"))) 
++
+  theme_minimal() +
+  theme(panel.background = element_rect(fill = "cornsilk",
+                                        color = "gray"),
+        plot.background = element_rect(fill = "lightgray"))
+
+ggsave("scatter.pdf", height = 4, width = 6, units = "in")
+```
+# Analyzing data
+
+```{r}
+data |>
+  summarize(`Average of median ages` = mean(age, na.rm = TRUE),
+            `Average of median incomes` = mean(income))
+```
+

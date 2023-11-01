@@ -20,7 +20,7 @@ for (i in 2012:2021) {
 }
 
 zips_messy <- zips |>
-  mutate(age_income = paste0("Age: ", med_age_E, " / Income: ", med_inc_E)) |>
+  mutate(age_income = paste0("Age: ", formatC(med_age_E, format = "f", digits = 1), " / Income: ", med_inc_E)) |>
   mutate(ZIP = substr(NAME, 7, 11)) |>
   select(ZIP, year, age_income) |>
   pivot_wider(names_from = year, values_from = age_income)

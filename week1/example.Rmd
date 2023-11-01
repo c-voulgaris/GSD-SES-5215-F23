@@ -1,0 +1,292 @@
+---
+title: "Analysis Assignment 1"
+author: "Carole Voulgaris"
+date: "2023-10-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Input data
+
+I am generating a simulated dataset representing housing costs.
+In this simulation, the monthly rent for a home is purely
+a function of the home's square footage, its distance to 
+downtown, its color, and whether it has a pool.
+
+Monthly rent for red homes is \$100 plus \$1 for each square foot and minus 
+\$50 for each mile from downtown. Blue homes cost \$100 per month more than 
+red homes and green homes cost \$150 per month more than red homes. Homes
+with pools coast \$200 more per month than homes without pools.
+
+I'll start by defining the input variables I'm using to generate the data.
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+uniform1 <- runif(10000)
+uniform2 <- runif(10000)
+
+dt_dist_mean = 4.2
+dt_dist_sd = 0.7
+
+sq_feet_mean = 1500
+sq_feet_sd = 150
+
+pct_red = 0.5
+pct_blue = 0.35
+pct_green = 0.15
+
+pct_pool = 0.15
+pct_no_pool = 0.85
+
+input_coeffs = list(Constant = 100,
+                    `Effect of square feet` = 0.7,
+                    `Effect of distance` = -50,
+                    `Effect of blue` = 100,
+                    `Effect of green` = 150,
+                    `Effect of pool` = 200)
+```
+
+# Data generation
+
+Now I will generate my simulated data set.
+
+```{r}
+data <- tibble(sq_feet = rnorm(10000, 
+                               mean = sq_feet_mean, 
+                               sd = sq_feet_sd),
+               dt_dist = rnorm(10000, 
+                               mean = dt_dist_mean, 
+                               sd = dt_dist_sd)) |>
+  mutate(color = case_when(uniform1 < pct_red ~ "Red",
+                           uniform1 < pct_red + pct_blue ~ "Blue",
+                           TRUE ~ "Green"),
+         pool = ifelse(uniform2 < pct_pool, 1, 0)) |>
+  mutate(blue = ifelse(color == "Blue", 1, 0),
+         green = ifelse(color == "Green", 1, 0)) |>
+  mutate(rent = input_coeffs$Constant +
+                input_coeffs$`Effect of square feet` * sq_feet +
+                input_coeffs$`Effect of distance` * dt_dist +
+                input_coeffs$`Effect of blue` * blue +
+                input_coeffs$`Effect of green` * green +
+                input_coeffs$`Effect of pool` * pool)
+```
+
+# Data visualization
+
+Here are some graphs illustrating the data set.
+
+## Distibution of continuous variables
+
+The following histograms illustrate the distribution of each continuous variable.
+
+```{r}
+ggplot(data) +
+  geom_histogram(aes(x = rent),
+                 bins = 50,
+                 fill = "pink",
+                 color = "white") +
+  scale_x_continuous(name = "Monthly rent") +
+  scale_y_continuous(name = "Frequency") +
+  theme_linedraw()
+```
+
+```{r}
+ggplot(data) +
+  geom_histogram(aes(x = dt_dist),
+                 bins = 50,
+                 fill = "pink",
+                 color = "white") +
+  scale_x_continuous(name = "Distance to downtown (miles)") +
+  scale_y_continuous(name = "Frequency") +
+  theme_linedraw()
+```
+
+
+```{r}
+ggplot(data) +
+  geom_histogram(aes(x = sq_feet),
+                 bins = 50,
+                 fill = "pink",
+                 color = "white") +
+  scale_x_continuous(name = "Square footage") +
+  scale_y_continuous(name = "Frequency") +
+  theme_linedraw()
+```
+
+## Relationships of continuous variables with outcome
+
+The following scatterplots illustrate the relationships between each
+continuous predictor variable and monthly rent.
+
+```{r}
+ggplot(data) +
+  geom_point(aes(x = dt_dist,
+                 y = rent),
+                 color = "pink",
+                 alpha = 0.25) +
+  scale_x_continuous(name = "Distance to downtown (miles)") +
+  scale_y_continuous(name = "Monthly rent") +
+  theme_linedraw()
+```
+
+```{r}
+ggplot(data) +
+  geom_point(aes(x = sq_feet,
+                 y = rent),
+                 color = "pink",
+                 alpha = 0.25) +
+  scale_x_continuous(name = "Square footage") +
+  scale_y_continuous(name = "Monthly rent") +
+  theme_linedraw()
+```
+
+## Relationships of categorical variables with outcome
+
+The following scatterplots illustrate the relationships between each
+categorical predictor variable and monthly rent.
+
+```{r}
+ggplot(data) +
+  geom_jitter(aes(x = color,
+                 y = rent),
+                 color = "pink",
+                 alpha = 0.25) +
+  scale_x_discrete(name = "") +
+  scale_y_continuous(name = "Monthly rent") +
+  theme_linedraw()
+```
+
+```{r}
+ggplot(data) +
+  geom_jitter(aes(x = pool,
+                 y = rent),
+                 color = "pink",
+                 alpha = 0.25) +
+  scale_x_continuous(name = "Pool",
+                     breaks = c(0,1),
+                     labels = c("No", "Yes")) +
+  scale_y_continuous(name = "Monthly rent") +
+  theme_linedraw()
+```
+
+# Data analysis
+
+This section compares the observed data to the values used to generate the data.
+
+## Descriptive statistics
+
+The following table shows the descriptive statistics for the outcome
+variable.
+
+```{r}
+library(knitr)
+
+summary_outcome <- data |>
+  summarize(`Calculated average monthly rent` = mean(rent),
+            `Calculated standard deviation of monthly rent` = sd(rent)) 
+
+kable(summary_outcome,
+      format.args = list(digits = 6))
+```
+
+The following table compares the average values of the continuous
+predictor variables to the values that were used to generate the data. 
+
+```{r}
+mean_summary <- data |>
+  pivot_longer(cols = c("sq_feet", "dt_dist"),
+               names_to = "Variable",
+               values_to = "value") |>
+  group_by(Variable) |>
+  summarize(`Calculated average` = mean(value)) |>
+  mutate(`Input average` = case_when(Variable == "dt_dist" ~ dt_dist_mean,
+                                     Variable == "sq_feet" ~ sq_feet_mean)) |>
+  mutate(Variable = case_when(Variable == "dt_dist" ~ 
+                                "Distance to downtown",
+                              Variable == "sq_feet" ~
+                                "Square footage")) |>
+  mutate(Difference = `Input average` - `Calculated average`)
+
+kable(mean_summary, 
+      format.args = list(digits = 3),
+      align = c("l", "c", "c", "c"))
+```
+
+The following table compares the standard deviations of the continuous
+predictor variables to the values that were used to generate the data. 
+
+```{r}
+sd_summary <- data |>
+  pivot_longer(cols = c("sq_feet", "dt_dist"),
+               names_to = "Variable",
+               values_to = "value") |>
+  group_by(Variable) |>
+  summarize(`Calculated standard deviation` = sd(value)) |>
+  mutate(`Input standard deviation` = 
+           case_when(Variable == "dt_dist" ~ dt_dist_sd,
+                     Variable == "sq_feet" ~ sq_feet_sd)) |>
+  mutate(Variable = case_when(Variable == "dt_dist" ~ 
+                                "Distance to downtown",
+                              Variable == "sq_feet" ~
+                                "Square footage")) |>
+  mutate(Difference = `Input standard deviation` - `Calculated standard deviation`)
+
+kable(sd_summary, 
+      format.args = list(digits = 3),
+      align = c("l", "c", "c", "c"))
+```
+
+The following table compares the proportions of the data in each color 
+category to the proportions that were used to generate the data. 
+
+```{r}
+color_summary <- tibble(Color = c("Red", "Blue", "Green"),
+                        `Calculated proportion` = c(mean(data$color == "Red"),
+                                                    mean(data$color == "Blue"),
+                                                    mean(data$color == "Green")),
+                        `Input proportion` = c(pct_red, pct_blue, pct_green)) |>
+  mutate(Difference = `Input proportion` - `Calculated proportion`)
+
+kable(color_summary)
+```
+
+The following table compares the proportions of the data in each pool 
+category to the proportions that were used to generate the data. 
+
+```{r}
+pool_summary <- tibble(Color = c("Pool", "No pool"),
+                        `Calculated proportion` = c(mean(data$pool),
+                                                    1-mean(data$pool)),
+                        `Input proportion` = c(pct_pool, pct_no_pool)) |>
+  mutate(Difference = `Input proportion` - `Calculated proportion`)
+
+kable(pool_summary)
+```
+
+## Regression
+
+The following table compares the regression coefficients to the 
+values that were used to generate to outcome variable.
+
+```{r}
+model <- lm(rent ~ 
+              sq_feet + 
+              dt_dist + 
+              blue + 
+              green + 
+              pool, 
+            data = data)
+
+coeff_summary = tibble(Variable = names(input_coeffs),
+                       `Input coefficients` = input_coeffs,
+                       `Calculated coefficients` = model$coefficients) |>
+  mutate(Difference = as.numeric(`Input coefficients`) - 
+           as.numeric(`Calculated coefficients`))
+
+kable(coeff_summary)
+```
+

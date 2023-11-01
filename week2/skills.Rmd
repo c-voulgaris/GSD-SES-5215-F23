@@ -1,0 +1,188 @@
+---
+title: "Skills: Sampling and confidence intervals"
+subtitle: "Week 2"
+output: 
+  rmdformats::readthedown:
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::knit_engines$set(python = reticulate::eng_python) 
+```
+
+In general, the data sets you work with represent *samples* of 
+larger *populations*. Your goal is to be able to generalize from
+your sample to the population.
+
+Sometimes this is literally and obviously true. For example, you might
+have sent a survey to one percent of all Canadian households, and you
+want to analyze the data to make some claims about the characteristics
+of Canadian households in general.
+
+Other times, describing your sample in terms of the population it comes
+from is not as obvious. For example, you might have data about every 
+county in the United States suggesting that incomes are higher in urban
+counties than in rural counties. You might argue that this is not a sample, 
+because you have data on every county that exists. *However*,
+if you want to claim that this difference is based on a fundamental 
+difference that is likely to always exist between urban and rural counties
+in the United States, then you need to be able to *generalize* this difference
+to a broader population, which would be 
+*all hypothetical counties that could ever exist in the United States.*
+
+This week, you'll continue to work with the data you generated last
+week. This dataset represents the full population you are studying.
+
+You will be doing the following:
+
+* Draw samples from the full population
+* Calculate descriptive statistics of your sample
+* Use the descriptive statistics to make guesses about the values
+would be for the full population.
+* Check your guesses against the values you calculated last week.
+
+# Data
+
+We'll start with a dataset of 10,000 observations like the one 
+you generated for your assignment last week.
+
+## R
+
+Here, I'll load a csv file with the dataset into my R environment
+
+```{r, message=FALSE}
+library(here)
+library(tidyverse)
+library(knitr)
+
+full_data <- here("week1",
+     "full-data.csv") |>
+  read_csv()
+```
+
+Here are the first few rows:
+
+```{r}
+head(full_data) |>
+  kable()
+```
+
+# Adding random error to an outcome
+
+Remember that we calculated the outcome variable directly 
+from the predictor variables, so the outcome is *perfectly predicted*
+by those predictors. To make things a little more realistic,
+let's add some random noise to the outcome.
+
+## R
+
+In R, you can use the `rnorm()` function to add random variation
+to a variable. Here I'll add a random value to the variable
+representing monthly rent. This extra value has an average
+of zero (so negative numbers will be as common as positive
+numbers) and a standard deviation of 100 (most of the values
+in a normal distribution fall with about two standard deviations
+of the mean, so this is like making the outcome equal to the
+calculated value, plus or minus 200).
+
+```{r}
+full_data = full_data |>
+  mutate(rent = rent + rnorm(10000, mean = 0, sd = 100))
+```
+
+
+# Drawing a sample
+
+Let's say this full dataset represents the full population I'm 
+interested in, but I don't have access to the full dataset. I 
+only have access to a sample of 100 observations.
+
+Here is one example of a the sample I might have access to.
+
+## R
+
+In R, I can draw a random sample of 100 observations from a 
+larger dataframe using the function `sample_n()`.
+
+```{r}
+sample_1 <- full_data |>
+  sample_n(100)
+```
+
+# Calculating the sample average
+
+We can take the average value of each variable in our sample, with 
+the hope that this will tell us something about the average in the
+population it came from.
+
+## R
+
+Here's how you would generate a neat little table with the average
+value for each variable in your sample.
+
+```{r}
+means <- sample_1 |>
+  pivot_longer(cols = where(is.numeric),
+               names_to = "Variable",
+               values_to = "Value") |>
+  group_by(Variable) |>
+  summarise(Average = mean(Value))
+
+kable(means)
+```
+
+# Guessing the population average
+
+You can use a one-sample t-test to make a reasonable guess of
+what the average value is for the population a sample comes 
+from. A t-test will give you a range of values that the average
+of the full population might be within, at a given level of confidence.
+
+## R
+
+Here is how you would extract the lower and upper values of
+a 95-percent confidence interval for average values in R.
+
+```{r}
+means <- sample_1 |>
+  pivot_longer(cols = where(is.numeric),
+               names_to = "Variable",
+               values_to = "Value") |>
+  group_by(Variable) |>
+  summarise(Average = mean(Value),
+            `C.I. Low` = t.test(Value, conf.level = 0.95)$conf.int[1],
+            `C.I. High` = t.test(Value, conf.level = 0.95)$conf.int[2])
+
+kable(means)
+```
+
+# Calculating regression coefficients
+
+
+## R
+
+```{r}
+model_sample_1 <- lm(rent ~ 
+                       sq_feet +
+                       dt_dist +
+                       pool +
+                       blue +
+                       green,
+                     data = sample_1)
+```
+
+Here is how you can view the model coefficients:
+
+```{r}
+model_sample_1$coefficients
+```
+
+And here is how you can view the 95-percent confidence intervals
+for those coefficients.
+
+```{r}
+confint(model_sample_1, level = 0.95)
+```
+
+
