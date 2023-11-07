@@ -229,7 +229,7 @@ here("week2",
   knitr::include_graphics()
 ```
 
-# Guessing the population average
+# Guessing the population average (continuous variables)
 
 You can use a one-sample t-test to make a reasonable guess of
 what the average value is for the population a sample comes 
@@ -243,6 +243,7 @@ a 95-percent confidence interval for average values in R.
 
 ```{r}
 means <- sample_1 |>
+  select(dt_dist, rent, sq_feet) |>
   pivot_longer(cols = where(is.numeric),
                names_to = "Variable",
                values_to = "Value") |>
@@ -292,6 +293,60 @@ here("week2",
      "excel-conf-int.gif") |>
   knitr::include_graphics()
 ```
+
+# Guessing the population proportions (categorical variables)
+
+Confidence intervals for proportions work the same way as confidence intervals
+for averages, but you use the standard error of the proportion instead of the 
+standard deviation.
+
+## R
+
+In R, you use prop.test rather than t.test when you want to find the 
+confidence interval for a proportion.
+
+```{r}
+means <- sample_1 |>
+  select(pool, blue, green) |>
+  pivot_longer(cols = where(is.numeric),
+               names_to = "Variable",
+               values_to = "Value") |>
+  group_by(Variable) |>
+  summarise(Average = mean(Value),
+            `C.I. Low` = prop.test(x = sum(Value==1),
+                                   n = n(), 
+                                   conf.level = 0.95)$conf.int[1],
+            `C.I. High` = prop.test(x = sum(Value==1),
+                                   n = n(), 
+                                   conf.level = 0.95)$conf.int[2])
+
+kable(means)
+```
+
+## Excel
+
+To calculate the 95-percent confidence interval in Excel, 
+you'd need to know that the confidence margin is
+the standard error times the z-score corresponding to
+the confidence level you want. 
+
+The standard error is given by the equation:
+
+$$
+S.E. = \sqrt{\frac{p\times(1-p)}{n}}
+$$
+
+Where _p_ is the proportion and _n_ is the number of observations. 
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week2",
+     "screenshots",
+     "prop-test.gif") |>
+  knitr::include_graphics()
+```
+
+Then you calculate the z-score and the upper and lower bounds of the 
+confidence interval as you would for a continuous variable.
 
 # Calculating regression coefficients
 
