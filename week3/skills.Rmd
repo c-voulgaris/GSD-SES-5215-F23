@@ -1,0 +1,141 @@
+---
+title: "Skills: Correlations and model fit"
+subtitle: "Week 3"
+output: 
+  rmdformats::readthedown:
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::knit_engines$set(python = reticulate::eng_python) 
+```
+
+This page demonstrates how to generate values for three difference measures
+of model fit.
+
+* Correlation
+* R-squared
+* Standard error of regression
+
+I'll start by loading the full dataset from last week's assignment (the
+one where I had added some random noise to the outcome).
+
+```{r, message=FALSE}
+library(tidyverse)
+library(here)
+library(knitr)
+
+full_data <- here("week2",
+                  "full-data.csv") |>
+  read_csv()
+```
+
+
+# Correlation
+
+Correlation describes how well the relationship between two continuous
+variables can be described by a linear relationship.
+
+## R
+
+In R, you can can calculate the correlation between all pairs of variables
+in a data frame by using the `cor()` function. Since we only want the 
+correlations between pairs of continuous variables, we'll start by
+using the `select()` function to choose just the variables we want 
+to include in our correlation table.
+
+```{r}
+cor_mat <- full_data |>
+  select(sq_feet,
+         dt_dist,
+         rent) |>
+  cor()
+
+cor_mat |>
+  kable()
+```
+
+## Excel
+
+In Excel, you can calculate the correlation between two variables
+using the `=CORREL()` function.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week2",
+     "screenshots",
+     "correl.gif") |>
+  knitr::include_graphics()
+```
+
+# R-squared
+
+Another way to calculate a correlation is to estimate a model with a 
+single predictor. The square root of the R-squared value will be the
+correlation between the predictor and the outcome. You can also 
+use R-squared to decribe the fit of a model with multiple predictors
+
+## R
+
+In R, after you estimate a model using the `lm()` function, you can use 
+the `summary()` function to see a summary of the results.
+
+The R-squared value will be shown as `Multiple R-squared:` towards the 
+bottom of the summary.
+
+```{r}
+model <- lm(rent ~ sq_feet + dt_dist + color, data = full_data)
+
+summary(model)
+```
+
+You can also just return the R-squared value on its own. This is useful if you
+are comparing the fit of multiple models and you don't want to be tempted
+to select your preferred model based on model coefficients and their 
+associated p-values.
+
+```{r}
+summary(model)$r.squared
+```
+## Excel
+
+In Excel, if you run the `=LINEST()` function to estimate a regression 
+model, the value in the first column of the third row will be the 
+R-squared value for the regression.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week3",
+     "screenshots",
+     "r-square.gif") |>
+  knitr::include_graphics()
+```
+
+# Standard error of regression
+
+The standard error of the regression can be used to generate confidence 
+intervals around a prediction. 
+
+## R
+
+In the output from the `summary()` function in R, the standard error of the
+regression is above the R-squared value, and labeled as 
+`Residual standard error:`.
+
+You can also pull out the standard error of regression directly by referring
+to it as `sigma`.
+
+```{r}
+summary(model)$sigma
+```
+## Excel
+
+In Excel, if you run the `=LINEST()` function to estimate a regression 
+model, the value in the second column of the third row will be the 
+standard error of the regression.
+
+```{r, echo=FALSE, message=FALSE, out.width = '100%'}
+here("week3",
+     "screenshots",
+     "st-err-reg.gif") |>
+  knitr::include_graphics()
+```

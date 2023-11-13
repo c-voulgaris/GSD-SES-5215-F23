@@ -1,0 +1,155 @@
+---
+title: "Concepts: Correlations and model fit"
+subtitle: "Week 3"
+output: 
+  rmdformats::readthedown:
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::knit_engines$set(python = reticulate::eng_python) 
+```
+
+This week, we'll talk about three related metrics that describe 
+how well the relationships between variables can be described as
+a particular linear relationship.
+
+* Correlation
+* R-squared
+* Standard error of regression
+
+# Correlation
+
+The correlation between two variables describes how closely the 
+relationship between two variables approximates a
+linear relationship, and whether that relationship is positive (higher values corresponding to higher values) or negative (higher values corresponding to lower values). Possible correlation values range from 
+-1.0 to 1.0. 
+
+* A value of 0 means there is no relationship between
+the two variables. 
+* A value of 1 means there is a perfectly linear, positive
+relationship between the two variables. 
+* A value of -1 means there is a perfectly linear, negative
+relationship between the two variables.
+
+All of these scatter plots show a correlation of 1.0.
+
+```{r, message=FALSE}
+library(tidyverse)
+
+data <- tibble(y = rnorm(500, mean = 100, sd = 20)) |>
+  mutate(Steepest = y/4,
+         Steep = y,
+         Shallow = y*2,
+         Shallowest = y*4) |>
+  pivot_longer(cols = c(-y),
+               names_to = "kind",
+               values_to = "x")
+
+ggplot(data, aes(x =x, y = y)) +
+  geom_point(alpha = 0.2, color = "blue", shape = 20) +
+  facet_wrap(facets = vars(kind),
+             nrow = 2) +
+  theme_linedraw()
+```
+
+All of these ones show a correlation of -1.0.
+
+```{r}
+data <- tibble(y = rnorm(500, mean = 100, sd = 20)) |>
+  mutate(Steepest = -y/4,
+         Steep = -y,
+         Shallow = -y*2,
+         Shallowest = -y*4) |>
+  pivot_longer(cols = c(-y),
+               names_to = "kind",
+               values_to = "x")
+
+ggplot(data, aes(x =x, y = y)) +
+  geom_point(alpha = 0.2, color = "blue", shape = 20) +
+  facet_wrap(facets = vars(kind),
+             nrow = 2) +
+  theme_linedraw()
+```
+
+
+All of these show a correlation of zero.
+
+
+```{r}
+data <- tibble(x = rnorm(500, mean = 100, sd = 20)) |>
+  mutate(`No variation` = 100,
+         `Some variation` = rnorm(500, mean=100, sd = 15),
+         `More variation` = rnorm(500, mean=100, sd = 30),
+         `Non-linear` = ((x-100)^2)/50 + 70) |>
+  pivot_longer(cols = c(-x),
+               names_to = "kind",
+               values_to = "y")
+
+ggplot(data, aes(x =x, y = y)) +
+  geom_point(alpha = 0.2, color = "blue", shape = 20) +
+  facet_wrap(facets = vars(kind),
+             nrow = 2) +
+  theme_linedraw()
+```
+
+A
+
+```{r, message=FALSE}
+library(faux)
+
+data1 = rmulti(n = 500,
+              r = 0.1) |>
+  mutate("Correlation" = "r = 0.1")
+
+data2 = rmulti(n = 500,
+               r = 0.25) |>
+  mutate("Correlation" = "r = 0.25")
+
+data3 = rmulti(n = 500,
+              r = 0.75) |>
+  mutate("Correlation" = "r = 0.75")
+
+data4 = rmulti(n = 500,
+               r = 0.9) |>
+  mutate("Correlation" = "r = 0.9")
+
+
+data = rbind(data1, data2) |>
+  rbind(data3) |>
+  rbind(data4)
+
+ggplot(data, aes(x =A, y = B)) +
+  geom_point(alpha = 0.2, color = "blue", shape = 20) +
+  facet_wrap(facets = vars(Correlation),
+             nrow = 2) +
+  theme_linedraw()
+```
+
+# R-squared
+
+When you estimate a regression model with a single continuous predictor,
+the the square of the correlation between the two variables (the predictor
+and the outcome) is a value called R-squared. R squared can be interpreted
+as the percentage of the variation in the outcome that can be predicted
+by the predictor(s).
+
+You can also calculate an R-squared value for a regression with multiple
+predictors, although in that case, there isn't a corresponding 
+correlation value.
+
+R-squared is a very widely-used measure of model fit.
+
+# Standard error of regression
+
+Another measure of model fit is the standard error of the regression. 
+
+Here's how I think of the standard error of regression: If there was a 
+a set of predictors that _could_ perfectly predict an outcome, and 
+you estimated a regression model that left out one of them, the standard
+error of the regression would be the standard deviation of the variable
+you left out.
+
+You can use the standard error of regression to construct a confidence
+interval around a predicted outcome produced by the model.
