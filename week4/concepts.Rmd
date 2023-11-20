@@ -1,0 +1,444 @@
+---
+title: "Concepts: Transformations"
+subtitle: "Week 4"
+output: 
+  rmdformats::readthedown:
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#knitr::knit_engines$set(python = reticulate::eng_python) 
+```
+
+
+Sometimes it is useful to transform the values of a variable before
+using them to estimate a regression model. There are two types
+of variable transformations:
+
+* *Linear transformations* will not change the fit of your model or the 
+significance of any of the variable coefficients, but they can make the
+coefficients and/or the constant easier to interpret.
+
+* *Non-linear transformations* can improve the fit if your model if the
+actual relationship between a predictor and the outcome is non-linear.
+
+# Linear relationships
+
+If there is a linear relationship between two variables, that means
+that each one-unit increase in one variable will be associated with a 
+consistent increase in the other. For example, a regression analysis
+might suggest that the relationship between time spend studying (in minutes) 
+and test scores can be described by the equation:
+
+$$
+score = 50 + 2*study
+$$
+Which would mean that a student who doesn't study at all would be predicted to
+get a score of 50 points on the test, and that each minute spent studying
+would result in an additional two points on the test. A students who studies for
+one minute would get a score of 52 on the test. A student who studies for
+20 minutes would get a score of 90. Since this is a linear relationship, no matter
+how much you've already studied, each additional minute of studying would always 
+increase your test score by two points.
+
+On a graph, the relationship between studying and test scores would look 
+like this:
+
+```{r, message=FALSE}
+library(tidyverse)
+
+study_data <- tibble(study = seq(0, 25, by=1)) |>
+  mutate(score = 50 + study*2)
+
+ggplot(study_data) +
+  geom_point(aes(x = study, y = score)) +
+  theme_linedraw()
+```
+
+## Regression with no transformation
+
+Here are the results of a regression model describing that relationship:
+
+```{r}
+study_model <- lm(score ~ study, data = study_data)
+
+summary(study_model)
+```
+
+# Linear transformation
+
+Suppose there is a linear relationship between population density and
+transit ridership. The results of a regression model might look something
+like this.
+
+```{r, echo = FALSE}
+rider_data = tibble(density = seq(1000, 50000, by = 100)) |>
+  mutate(riders = round(-2 + 0.005*density + rnorm(491, mean = 0, sd = 2)))
+```
+
+```{r}
+rider_model <- lm(riders ~ density, data = rider_data)
+
+summary(rider_model)
+```
+
+The intercept of the regression is about -2. We can interpret this to mean that
+in an area with zero people per square mile, we would expect transit ridership
+to be negative. This is a nonsense and useless observation. There aren't transit
+stops in places with zero people per square mile, and negative ridership isn't 
+a thing.
+
+We can *_mean center_* our data so that the regression's intercept does tell us
+something interesting. Mean-centering means you subtract the average value for
+a variable from each observation, so the value in the regression doesn't represent
+the actual value of the predictor, but rather, the difference between the value
+and the average for the whole sample.
+
+```{r}
+rider_data <- rider_data |>
+  mutate(density_centered = density - mean(density))
+```
+
+Now, here's a regression using the mean-centered predictor:
+
+```{r}
+rider_model <- lm(riders ~ density_centered, data = rider_data)
+
+summary(rider_model)
+```
+
+Now, the intercept tells us that when the centered version of the
+variable is zero (i.e. when the density is at its average value),
+the expected ridership would be about 125 riders. 
+
+We also see (in both versions of this regression) that each additional
+person per square mile is associated with an increase in ridership of 0.005.
+That doesn't sound like much of an effect, but why would it be? An increase
+of one person  per square miles isn't that much of a difference.
+
+We might be more interested in the effect of an increase in density
+of 1,000 people per square mile. We can get a coefficient representing the
+effect of 1,000 additional people per square mile if we divide the 
+density variable by 1,000 before running our model. This is called *_scaling_* the
+variable.
+
+```{r}
+rider_data <- rider_data |>
+  mutate(density_centered_scaled = density_centered/1000)
+```
+
+Now we can run the regression with this centered, scaled predictor.
+
+```{r}
+rider_model <- lm(riders ~ density_centered_scaled, data = rider_data)
+
+summary(rider_model)
+```
+
+Now that coefficient tells us that a in increase in density of 1,000
+people per square mile is associated with a five-person increase
+in ridership.
+
+Note that none of these linear transformations change the model fit or the
+significance of any of the relationships.
+
+# Non-linear transformations
+
+Linear regression models allow us to uncover linear relationships.
+Some variables may have a non-linear relationship with an outcome.
+A non-linear transformation can help allow you to apply linear 
+regression to determine those relationships.
+
+Two common non-linear transformations are logarithmic transformations
+and quadratic transformations. 
+
+## Logarithmic relationshipos
+
+There are many real-world situations where the incremental effect of some
+predictor depends on the initial value. The effects of prices or incomes
+on behavioral outcomes can be like this. The effect of, for example, an additional
+\$10,000 per year in income on your consumption patterns would probably depend
+a lot on your current income. If your current income is \$10,000 per year, that
+additional \$10,000 would represent a doubling of your income, and this might have
+a dramatic impact on how you spend your time and money. If your current income
+is \$50,000 per year, this would be a 20\% increase, which might have a more
+modest effect on your habits. If your current income is \$1,000,000 per year,
+this would only be a 1\% increase, and it might not make much of a difference
+to you at all.
+
+There may not be a consistent effect for each _absolute_ change in income,
+but there might be a consistent effect for each _relative_ change income. For
+instance, it's possible that, for each doubling in household income, household
+members spend ten fewer minutes per day worrying about money. Every time 
+income doubles, the base-two log of income increases by one, so this relationship
+could be expressed as:
+
+$$
+worrying = 193-10\times log_2(income)
+$$
+
+On a graph, that relationship would look like this:
+
+```{r}
+worry_data = tibble(income = seq(10000, 640000,by = 10000)) |>
+  mutate(worry = 193 - 10*log2(income))
+
+ggplot(worry_data) +
+  geom_point(aes(x = income, y = worry)) +
+  scale_x_continuous(breaks = breaks <- seq(0, 600000, by = 200000),
+                     labels = formatC(breaks, big.mark = ",", format = "d")) +
+  theme_linedraw()
+```
+
+### Regression with no transformation
+
+This is not a linear relationship, so even though worrying is perfectly
+predicted by income, a linear regression model predicting worrying from 
+income won't have a perfect fit.
+
+```{r}
+worry_model <- lm(worry ~ income, data = worry_data)
+
+summary(worry_model)
+```
+
+But there is still a linear relationship between worry and the log of income.
+
+```{r}
+ggplot(worry_data) +
+  geom_point(aes(x = log2(income), y = worry)) +
+  theme_linedraw()
+```
+
+### Regression with a log transformation
+
+So if we fit a linear regression model predicting worry with the log of income,
+we get a much better fit.
+
+```{r}
+worry_model <- lm(worry ~ log(income, 2), data = worry_data)
+
+summary(worry_model)
+```
+
+It's worth pointing out that we get the same model fit for a log of any
+base (although the coefficient and its interpretation would change).
+
+In the above model results, the income coefficent
+can be interpreted as the effect of doubling income. 
+
+If we use a base-ten log, the coefficient is the effect of  a ten-fold increase
+in income, but the overall model fit is the same, and so is the value 
+of the constant.
+
+```{r}
+worry_model_10 <- lm(worry ~ log(income,10), data = worry_data)
+
+summary(worry_model_10)
+```
+
+When the base of logarithm isn't specified, it's generally going to be 
+a natural log, which means you'd interpret the coefficient as the
+effect of increasing the value of the predictor by a factor of about 2.7.
+
+```{r}
+worry_model <- lm(worry ~ log(income), data = worry_data)
+
+summary(worry_model)
+```
+
+### Unwinding a logarithmic transformation
+
+Since worrying is apparently perfectly predicted by income, if you tell me
+how much worrying someone does, I should be able to tell you their income.
+
+What if you tell me they worry about money for 25 minutes per day?
+
+My regression with a base-2 log told me that:
+
+$$
+worrying = 193-10\times log_2(income)
+$$
+
+So if someone worries for 25 minutes per day:
+
+$$
+193-10\times log_2(income) = 25
+$$
+
+$$
+log_2(income) = 16.8
+$$
+
+$$
+income = 2^{16.8} = 114,104.8 
+$$
+
+When I estimated regression with a base-10 log, I got this equivalent formula:
+
+$$
+worrying = 193-33.22\times log_{10}(income)
+$$
+
+So again, if someone worries for 25 minutes per day:
+
+$$
+193-33.22\times log_{10}(income) = 25
+$$
+
+$$
+log_{10}(income) = 5.057
+$$
+
+$$
+income = 10^{5.057} = 114,104.8
+$$
+
+
+When I estimated regression with a natural (base ~2.7) log, I got this equivalent formula:
+
+$$
+worrying = 193-14.43\times ln(income)
+$$
+
+So again, if someone worries for 25 minutes per day:
+
+$$
+193-14.43\times ln(income) = 25
+$$
+
+$$
+ln(income) = 11.645
+$$
+
+$$
+income = e^{11.64487} = 114,104.8
+$$
+
+The function for raising e to a power in both R and Excel is `exp()`.
+
+## Quadratic relationships
+
+Log transformations are by far the most common non-linear transformation
+you're likely to come across in linear regression.
+
+Quadratic realtionships will occasionally be a useful way to model the
+effect of age on an outcome. There are many outcomes might increase with 
+age up to a certain maximum age, aad then they decrease after that.
+
+For example, a typical tennis player's abilities might be lower at younger ages
+(when they are still inexperienced and have shorter arms), and increase 
+with age (as they get stronger and more experienced). Then, at a certain age, 
+they might start to lose some abilities due to injury or other effects of age.
+
+In that case, the relationship between tennis ability and age might look
+like this:
+
+```{r}
+tennis_data <- tibble(age = seq(10, 65, by = 1)) |>
+  mutate(tennis = -4.25 + 0.6*age - 0.008*age^2)
+
+ggplot(tennis_data) +
+  geom_point(aes(x = age, y = tennis)) +
+  theme_linedraw()
+```
+
+Which also kind of looks like the path a tennis ball might take through the air.
+
+The equation describing this relationship is a quadratic equation with a single
+predictor:
+
+$$
+tennis = -4.25 + 0.6(age) - 0.008(age^2) 
+$$
+
+### Regression with no transformation
+
+Again, if we try to estimate the effect of age on tennis ability when this is 
+the relationship, we would find that age doesn't have an effect on 
+tennis.
+
+```{r}
+tennis_model <- lm(tennis ~ age, data = tennis_data)
+
+summary(tennis_model)
+```
+
+### Regression with a quadradic transformation
+
+But we could estimate this relationship using a linear regression model with
+two predictors: age and age-squared.
+
+```{r}
+tennis_data <- tennis_data |>
+  mutate(age_squ = age^2)
+
+tennis_model <- lm(tennis ~ age + age_squ, data = tennis_data)
+
+summary(tennis_model)
+```
+
+You can't really interpret the coefficients for age and age-squared separately.
+If the coefficient for age-squared is significant and negative and 
+coefficient for age is significant and positive, that 
+tells you that the value for the outcome increases with age up to a certain
+point, and then begins to decrease with age.
+
+### Unwinding a quadradic transformation
+
+Since tennis ability is perfectly predicted by age,
+we should be able to calculate a person's age based on their tennis ability. 
+
+This will require us to dust off the old quadratic equation.
+
+When:
+
+$$
+ax^2 + bx + c = 0
+$$
+
+
+We can solve for x using the formula:
+
+$$
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$$
+
+So if my regression suggests that the relationship between tennis and age is:
+
+$$
+tennis = -4.25 + 0.6(age) - 0.008(age^2) 
+$$
+
+
+And I want to know the age(s) at which a person would have a tennis rating of
+5.0, I would set up the equation as:
+
+$$
+-4.25 + 0.6(age) - 0.008(age^2) = 5
+$$
+
+Which is the same as:
+
+$$
+- 0.008(age^2) + 0.6(age) - 9.25   = 0
+$$
+
+Which I can solve as:
+
+$$
+age = \frac{-0.6 \pm \sqrt{0.6^2 - 4(-9.25)(-0.008)}}{2(-0.008)}
+$$
+
+```{r}
+(-0.6 + sqrt(0.6^2 - 4*-9.25*-0.008))/(2*-0.008)
+```
+
+```{r}
+(-0.6 - sqrt(0.6^2 - 4*-9.25*-0.008))/(2*-0.008)
+```
+
+Which would give me two possible values for age: 21 and 53.
+
+
